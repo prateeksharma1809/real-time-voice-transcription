@@ -1,0 +1,12 @@
+SpeechRecognition
+pyaudio
+openai-whisper
+sounddevice
+numpy
+whisper-live
+langchain>=0.0.200
+openai
+chromadb
+python-dotenv
+rich
+tqdm

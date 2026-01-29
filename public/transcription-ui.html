@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Transcription</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f8f9fa;
+        }
+
+        .upload-area.drag-over {
+            background: #e8eaf6;
+            border-color: #764ba2;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin-top: 15px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .record-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            font-size: 24px;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .record-button.recording {
+            background: #dc3545;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            50% { box-shadow: 0 0 0 15px rgba(220, 53, 69, 0); }
+        }
+
+        .result {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .result p {
+            color: #333;
+            line-height: 1.6;
+            font-size: 16px;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .live-transcription {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            min-height: 100px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .live-transcription p {
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .api-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .api-status.connected {
+            background: #28a745;
+        }
+
+        .api-status.disconnected {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Voice Transcription</h1>
+        <p class="subtitle">
+            <span class="api-status disconnected" id="apiStatus"></span>
+            <span id="apiStatusText">Checking API...</span>
+        </p>
+
+        <!-- File Upload Section -->
+        <div class="section">
+            <h2>📁 Upload Audio File</h2>
+            <div class="upload-area" id="uploadArea">
+                <p>📎 Click to select or drag & drop an audio file</p>
+                <p style="color: #999; font-size: 12px; margin-top: 8px;">Supported: MP3, WAV, M4A, FLAC, OGG</p>
+            </div>
+            <input type="file" id="fileInput" accept="audio/*">
+            
+            <div class="status" id="uploadStatus"></div>
+            <div class="result" id="uploadResult">
+                <h3>Transcription Result:</h3>
+                <p id="uploadText"></p>
+            </div>
+        </div>
+
+        <!-- Real-time Recording Section -->
+        <div class="section">
+            <h2>🔴 Live Recording</h2>
+            <p style="color: #666; margin-bottom: 15px;">Record and transcribe in real-time</p>
+            
+            <button class="record-button" id="recordButton">🎙️</button>
+            <p style="text-align: center; color: #666; font-size: 14px;" id="recordStatus">Click to start recording</p>
+            
+            <div class="live-transcription">
+                <p id="liveText" style="color: #999;">Transcription will appear here...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let websocket = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+
+        // Check API status
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch(`${API_URL}/`);
+                const data = await response.json();
+                document.getElementById('apiStatus').className = 'api-status connected';
+                document.getElementById('apiStatusText').textContent = 'API Connected';
+            } catch (error) {
+                document.getElementById('apiStatus').className = 'api-status disconnected';
+                document.getElementById('apiStatusText').textContent = 'API Disconnected';
+            }
+        }
+
+        // File Upload Handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFileUpload(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFileUpload(file);
+        });
+
+        async function handleFileUpload(file) {
+            const statusDiv = document.getElementById('uploadStatus');
+            const resultDiv = document.getElementById('uploadResult');
+            
+            statusDiv.className = 'status show info';
+            statusDiv.textContent = 'Transcribing...';
+            resultDiv.classList.remove('show');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_URL}/transcribe`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    statusDiv.className = 'status show success';
+                    statusDiv.textContent = `✓ Transcription complete (Language: ${data.language})`;
+                    document.getElementById('uploadText').textContent = data.text;
+                    resultDiv.classList.add('show');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                statusDiv.className = 'status show error';
+                statusDiv.textContent = `✗ Error: ${error.message}`;
+            }
+        }
+
+        // Real-time Recording
+        const recordButton = document.getElementById('recordButton');
+        const recordStatus = document.getElementById('recordStatus');
+        const liveText = document.getElementById('liveText');
+
+        recordButton.addEventListener('click', toggleRecording);
+
+        async function toggleRecording() {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                stopRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Connect WebSocket
+                websocket = new WebSocket(`ws://localhost:8000/ws/transcribe`);
+                
+                websocket.onopen = () => {
+                    console.log('WebSocket connected');
+                };
+
+                websocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.success && data.text.trim()) {
+                        liveText.textContent = data.text;
+                        liveText.style.color = '#333';
+                    }
+                };
+
+                websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    stopRecording();
+                    alert('WebSocket connection failed. Make sure the API is running.');
+                };
+
+                // Setup MediaRecorder
+                const audioContext = new AudioContext({ sampleRate: 16000 });
+                const source = audioContext.createMediaStreamSource(stream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                processor.onaudioprocess = (e) => {
+                    if (websocket && websocket.readyState === WebSocket.OPEN) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        const outputData = new Int16Array(inputData.length);
+                        
+                        for (let i = 0; i < inputData.length; i++) {
+                            outputData[i] = Math.max(-32768, Math.min(32767, inputData[i] * 32768));
+                        }
+                        
+                        websocket.send(outputData.buffer);
+                    }
+                };
+
+                isRecording = true;
+                recordButton.classList.add('recording');
+                recordButton.textContent = '⏹️';
+                recordStatus.textContent = 'Recording... Click to stop';
+                liveText.textContent = 'Listening...';
+                liveText.style.color = '#999';
+
+                // Store for cleanup
+                recordButton.audioContext = audioContext;
+                recordButton.processor = processor;
+                recordButton.stream = stream;
+
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                alert('Could not access microphone. Please grant permission.');
+            }
+        }
+
+        function stopRecording() {
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+
+            if (recordButton.stream) {
+                recordButton.stream.getTracks().forEach(track => track.stop());
+            }
+
+            if (recordButton.audioContext) {
+                recordButton.audioContext.close();
+            }
+
+            isRecording = false;
+            recordButton.classList.remove('recording');
+            recordButton.textContent = '🎙️';
+            recordStatus.textContent = 'Click to start recording';
+        }
+
+        // Initialize
+        checkAPIStatus();
+        setInterval(checkAPIStatus, 10000); // Check every 10 seconds
+    </script>
+</body>
+</html>

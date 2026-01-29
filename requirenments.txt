@@ -10,3 +10,5 @@ chromadb
 python-dotenv
 rich
 tqdm
+fastapi
+python-multipart
